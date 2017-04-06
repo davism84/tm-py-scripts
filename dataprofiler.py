@@ -94,11 +94,18 @@ def process():
 					invalidDt = '-' 
 
 				if dtype == 'object':
-					writer.writerow({'column': col, 'count': v[0], 'percentage': '{:3.1f}%'.format(percent), 
-						'top_value': v[2], 'top_freq': v[3], 'unique_values': v[1], 'datatype': dtype, 'invalid_dates': invalidDt})
+					try:
+						writer.writerow({'column': col, 'count': v[0], 'percentage': '{:3.1f}%'.format(percent), 
+							'top_value': v[2], 'top_freq': v[3], 'unique_values': v[1], 'datatype': dtype, 'invalid_dates': invalidDt})
+					except Exception as ew:
+						print(ew)
+						pass
 				else:
 					writer.writerow({'column': col, 'count': v[0], 'percentage': '{:3.1f}%'.format(percent), 
 						'top_value': v[6], 'top_freq': '-', 'unique_values': '-', 'datatype': dtype, 'invalid_dates': invalidDt})
+		except Exception as ex:
+			print(ex)
+			pass
 		finally:
 			csvfile.close()
 
