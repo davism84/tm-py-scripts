@@ -62,11 +62,16 @@ def build_patients(filename):
 			age = row['AGE']
 			sex = row['SEX']
 			race = row['RACE']
-			srcId = PROJECT + ':'+ str(pid)
+			srcId = PROJECT.upper() + ':'+ str(pid)   # project name must be upper here for the sourcesystem_cd (code won't show the demographic info correctly)
 
-			if bulk:   #'patient_num': pid ,
-				sql = {'sex_cd': sex[0:49], 'age_in_years_num': age, 'race_cd': race, 'update_date': 'now',    
-					'download_date':'now', 'import_date': 'now', 'sourcesystem_cd':srcId}
+			if bulk:  
+				if fori2b2:
+					sql = {'patient_num': pid ,'sex_cd': sex[0:49], 'age_in_years_num': age, 'race_cd': race, 'update_date': 'now',    
+						'download_date':'now', 'import_date': 'now', 'sourcesystem_cd':srcId}
+				else:
+					sql = {'sex_cd': sex[0:49], 'age_in_years_num': age, 'race_cd': race, 'update_date': 'now',    
+						'download_date':'now', 'import_date': 'now', 'sourcesystem_cd':srcId}
+
 			else:
 				sql = get_insert_stmt(sex, age, race, srcId)
 
@@ -103,8 +108,11 @@ def get_insert_stmt(gender, age, race, srcId):
 
 def write_bulk():
 
-	#'patient_num',
-	headers = ['sex_cd', 'age_in_years_num', 'race_cd', 'update_date', 
+	if fori2b2:
+		headers = ['patient_num', 'sex_cd', 'age_in_years_num', 'race_cd', 'update_date', 
+					'download_date', 'import_date', 'sourcesystem_cd']
+	else:
+		headers = ['sex_cd', 'age_in_years_num', 'race_cd', 'update_date', 
 					'download_date', 'import_date', 'sourcesystem_cd']
 
 	with open(bulkfilename, "w") as out:
@@ -127,6 +135,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("datafile", help="Data file")
 	parser.add_argument("-p", help="Project name")
+	parser.add_argument("-i2b2", action="store_true", help="load patients for i2b2 instance")
 	parser.add_argument("-b", action="store_true", help="generate file for bulk load")	
 #	parser.add_argument("-tab", action="store_true", help="tab delimited file (default comma)")
 	args = parser.parse_args()
@@ -137,5 +146,7 @@ if __name__ == "__main__":
 		PROJECT = args.p
 	if args.b:
 		bulk = args.b
+	if args.i2b2:
+		fori2b2 = True
 
 	main(cfgfile, datafile)

@@ -8,6 +8,9 @@ import string
 import pandas as pd
 import numpy as ny
 import random
+import time
+from datetime import timedelta
+import logging
 
 cfgfile = ''
 datafile = ''
@@ -25,6 +28,7 @@ PROJECT = ''
 strMode = True
 fori2b2 = False
 diseaseCat = 'Breast'  # default
+start_time = time.time()
 
 def remove_tags(text):
 	tmp = TAG_RE.sub('', text)
@@ -87,10 +91,11 @@ def get_unique_codes(filename):
 			if colno > 2:		# SKIP first columns assume SUBJ_ID and STUDY_ID
 				cat = lvl['category']
 				pnode = lvl['label']
+				pnode = pnode.strip()
 				levels = cat.replace('+', '\\')
 				tooltip = lvl['descrip']
 				path = TOP_PATH + PROJECT + '\\' + diseaseCat + '\\' + levels + '\\'+ pnode.strip() + '\\'
-								
+						
 				colType = df[headers[colno-1]].dtype
 				#print(colType.name)
 				
@@ -110,18 +115,19 @@ def get_unique_codes(filename):
 					# now loop through all the codes
 					for node in uniqCodes:
 						try:
-							if node.isnumeric() == False:
+							if node.isnumeric() == False and len(str(node).strip()) > 0:
+								node = str(node).strip()
 								conceptId = PROJECT[0:3] + ':' + str(random.random())
-								conceptPath = path + str(node) + '\\'
-								get_i2b2_insert_stmt(conceptPath.strip(), str(node).strip(), 'T', PROJECT, conceptId, 'LA', colno, tooltip)
-								get_concept_insert_stmt(conceptPath, str(node), PROJECT, conceptId)
+								conceptPath = path + node + '\\'
+								get_i2b2_insert_stmt(conceptPath.strip(), node, 'T', PROJECT, conceptId, 'LA', colno, tooltip)
+								get_concept_insert_stmt(conceptPath, node, PROJECT, conceptId)
 						except:
 							e = ''
 					
 				else:  # Numeric
 					conceptId = PROJECT[0:3] + ':' + str(random.random())
-					get_i2b2_insert_stmt(path.strip(), str(pnode).strip(), 'N', PROJECT, conceptId, 'LA', colno, tooltip)
-					get_concept_insert_stmt(path.strip(), str(pnode).strip(), PROJECT, conceptId)
+					get_i2b2_insert_stmt(path.strip(), str(pnode), 'N', PROJECT, conceptId, 'LA', colno, tooltip)
+					get_concept_insert_stmt(path.strip(), str(pnode), PROJECT, conceptId)
 
 		# add project root nodes
 		conceptId = PROJECT[0:3] + ':' + str(random.random())
@@ -139,6 +145,7 @@ def get_unique_codes(filename):
 		for path in parentLevels:
 			a = path.split('\\')
 			pnode = a[len(a)-2]  # use the last label for the node name
+			pnode = pnode.strip()
 			#print(path)
 			conceptId = PROJECT[0:3] + ':' + str(random.random())
 			get_i2b2_insert_stmt(path, pnode, 'T', PROJECT, conceptId, 'FA', colno, pnode)
@@ -241,6 +248,7 @@ def write_sql():
 
 	except:
 		print ('Error writing line')
+		logging.error('Error writing line, write_sql')
 	finally:
 		outfile.close()	
 		outfile2.close()	
@@ -278,6 +286,8 @@ def write_concepts_bulk():
 
 
 def main(cffile, dfile):
+
+	logging.basicConfig(filename='oncgen.log',level=logging.DEBUG)
 	read_cfg_file(cffile)
 	build_cf_levels()
 	build_parent_level_nodes()
@@ -290,14 +300,21 @@ def main(cffile, dfile):
 
 	write_concept_key_file()
 
+	elapsed_time_secs = time.time() - start_time
+
+	print("Execution took: %s secs (Wall clock time)" % timedelta(seconds=round(elapsed_time_secs)))
+
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("cfgfile", help="Config file")
 	parser.add_argument("datafile", help="Data file")
-	parser.add_argument("-p", help="Project name")
+	parser.add_argument("-p", help="Project/study name")
 	parser.add_argument("-d", help="Disease, will append to front of category, parent folder")
-	parser.add_argument("-b", action="store_true", help="generate file for bulk load")		
+	parser.add_argument("-b", action="store_true", help="generate file for bulk load")	
+	parser.add_argument("-r", action="store_true", help="make a private or restricted study, default is Public")
+	parser.add_argument("-top", help="Top Node")
+
 #	parser.add_argument("-o", help="Output file")
 #   parser.add_argument("-i", action="store_true", help="Generate sql for i2b2 table")	
 #	parser.add_argument("-tab", action="store_true", help="tab delimited file (default comma)")
@@ -312,7 +329,11 @@ if __name__ == "__main__":
 	if args.b:
 		bulk = args.b	
 	if args.d:
-		diseaseCat = args.d	
+		diseaseCat = args.d
+	if args.r:
+		TOP_PATH = '\\Private Studies\\' # just make it the root
+	if args.top:
+		TOP_PATH = '\\' + args.top + '\\' # custom top node
 
 	# if args.o:
 	# 	outfilename = args.o

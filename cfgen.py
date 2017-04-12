@@ -5,13 +5,16 @@ import requests
 import json
 import re
 import string
+import os
 
+PROG_DIR = "E:/VirtualBox VMs/shared/ETL/tm-py-scripts/"
 NAMESPACE = "cancer-reg"
 KEYNS = "ties.model"
 TAG_RE = re.compile(r'<[^>]+>')
 transmart = False
 delimiter = ','
 outfilename = "config.cfg"
+disease = ''
 
 def remove_tags(text):
 	tmp = TAG_RE.sub('', text)
@@ -47,7 +50,8 @@ def read_template():
 	return cfgheader
 
 def read_metadata():
-	with open("IPM-CR-CDE-DataDictionary.csv") as csvfile:
+
+	with open(PROG_DIR + "IPM-CR-CDE-DataDictionary.csv") as csvfile:
 		reader = csv.DictReader(csvfile)
 		cols = reader.fieldnames
 
@@ -69,7 +73,7 @@ def match(field):
 		#print(type(r))
 		fld = r['FieldName'].upper()
 		if field == fld:
-			mlabel = r['METRIQLabel']
+			mlabel = checkCSSFToGetDiseaseLabel(fld, r)
 			phi = r['PHI']
 			naa = r['NAACCRCode']
 			dt = r['DataType']
@@ -80,6 +84,17 @@ def match(field):
 			break
 	return phi, naa, dt, pk, cat,mlabel
 
+# method to check to see if the field is a CS Site Specific factor, then use alternative label
+def checkCSSFToGetDiseaseLabel(fld, r):
+	try:
+		if fld.startswith('CS_SSFACTOR'):
+			l = 'AltLabel-' + disease
+			return r[l]
+	except Exception as e:
+		pass
+
+	return r['METRIQLabel']
+	
 # write a configuration file
 def write_tiescfg(rows, afile):
 	outfile = outfilename + ".cfg"
@@ -251,6 +266,7 @@ if __name__ == "__main__":
 	parser.add_argument("-o", help="output file")
 	parser.add_argument("-tab", action="store_true", help="tab delimited file (default comma)")
 	parser.add_argument("-transmart", action="store_true", help="generate a tranSMART configuration file")	
+	parser.add_argument("-d", help="use altlabel for disease (for cssfactors); breast, lung, etc")
 	args = parser.parse_args()
 
 	if args.afile:
@@ -263,5 +279,7 @@ if __name__ == "__main__":
 		delimiter = '\t'
 	if args.o:
 		outfilename = args.o
+	if args.d:
+		disease = args.d
 
 	main(afile)

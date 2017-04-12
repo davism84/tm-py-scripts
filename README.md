@@ -1,11 +1,8 @@
-# tm-py-scripts
-transmart ETL python scripts
-
 # For transmart
 
 **1. Generate config file**
 
-`$ python cfgen.py -transmart -tab data-2.tsv -o data-2.cfg `
+$ python ..\..\tm-py-scripts\cfgen.py -d breast -transmart -tab data-151.tsv -o data.cfg
 
 **2. Adding Patients**
 
@@ -30,6 +27,9 @@ _These use the Postgres **COPY** command for loading bulk data which is much fas
 FROM '/home/transmart/transmart-data/imports/patient_dim.csv'
 (FORMAT csv, HEADER true);
 
+**_NEED TO run this for PUBLIC study_**
+- select tm_cz.i2b2_create_security_for_trial('<study_id>', 'N', 0);
+
 - copy i2b2demodata.concept_dimension
 (concept_cd,concept_path,name_char,update_date,download_date,import_date,sourcesystem_cd)
 FROM '/home/transmart/transmart-data/imports/concepts_dim.csv'
@@ -49,6 +49,19 @@ FROM '/home/transmart/transmart-data/imports/observation_facts.csv'
 
 select tm_cz.i2b2_create_concept_counts('\Public Studies\TEST58\', null);
 
-** To secure a study**
+** To secure a study**  
+-- this is IMPORTANT to at least set security AFTER loading PATIENT_DIMENSION, the Grid feature JOINs with the PATIENT_TRIAL table to display the demographics info
 
-I2B2_SECURE_STUDY
+select tm_cz.I2B2_SECURE_STUDY('<trial name-UPPERCASE>', 0);    -- trial name must be in UPPERCASE! this will make the STUDY completely secure, not PUBLIC (use individual SQL below to make PUBLIC, )
+
+- select tm_cz.i2b2_create_security_for_trial('PvtRegistry', 'Y', 0);  -- study_id, <secured? y/n>, <jobid>
+- select tm_cz.i2b2_load_security_data(0);	-- onnly run this if it's a SECURE study
+
+1 adds a concept_cd = 'SECURITY' record to OBSERVATION_FACT 
+2 adds patients to patient_trial with secure_obj_token
+
+REM this command should work for the above two commands but there is a syntax error somewhere 
+
+
+** REMOVE a study
+select tm_cz.i2b2_backout_trial('CancerRegistry', '\Public Studies\CancerRegistry\', -1);

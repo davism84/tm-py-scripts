@@ -13,6 +13,9 @@ import psycopg2 as pg
 import psycopg2.extras
 import math
 import sys
+import time
+from datetime import timedelta
+import logging
 
 bulk = False
 cfgfile = ''
@@ -45,6 +48,7 @@ patientIds = []
 
 dbcon = None
 cur = None
+start_time = time.time()
 
 def open_db():
 	print('Opening database connection...')
@@ -74,6 +78,7 @@ def open_db():
 
 def get_patient_id(pid):
 	for v in patientIds:
+		#print(v)
 		srcId = v['source_id']
 		if pid == srcId:
 			return v['patient_num']
@@ -82,7 +87,8 @@ def get_patient_id(pid):
 def get_patient_ids_from_db():
 	try:
 		print('Loading patient ids for DB...')
-		sql = "select patient_num, sourcesystem_cd from patient_dimension where sourcesystem_cd like \'" + PROJECT + "%\'"
+		sql = "select patient_num, sourcesystem_cd from patient_dimension where sourcesystem_cd like \'" + PROJECT.upper() + "%\'"
+		print (sql)
 		dbcon = pg.connect(host='localhost', database='transmart', user='i2b2demodata', password='i2b2demodata')
 		cur = dbcon.cursor()
 		
@@ -123,6 +129,7 @@ def build_obs(filename):
 		dfSize = len(df.index)
 		
 		print('     Total rows in data file:' + str(dfSize))
+		logging.info('     Total rows in data file:' + str(dfSize))
 		print('Building OBS...')
 		for i,row in df.iterrows():
 			pid = row['SUBJ_ID']
@@ -131,10 +138,10 @@ def build_obs(filename):
 			process_status(i, dfSize)
 
 			patientNum = get_patient_id(key)
-			#print(type(patientNum))
 			#print(patientNum)
+			#print(type(patientNum))
 			# loop through all t he columns to get data
-			if patientNum:
+			if patientNum:				
 				for index in range(len(headers)):
 					if headers[index] != 'SUBJ_ID' and headers[index] != 'STUDY_ID':   # skip these two fields
 						tval = row[index]
@@ -246,6 +253,8 @@ def match_num(col):
 
 def main(cffile, dfile):
 
+	logging.basicConfig(filename='obsgen.log',level=logging.DEBUG)
+
 	#open_db()
 	patsLoaded = get_patient_ids_from_db()
 
@@ -261,6 +270,11 @@ def main(cffile, dfile):
 		else:
 			write_sql()
 
+	elapsed_time_secs = time.time() - start_time
+
+	print("Execution took: %s secs (Wall clock time)" % timedelta(seconds=round(elapsed_time_secs)))
+	logging.info("Execution took: %s secs (Wall clock time)" % timedelta(seconds=round(elapsed_time_secs)))
+
 	#close_db()
 
 if __name__ == "__main__":
@@ -270,6 +284,7 @@ if __name__ == "__main__":
 	parser.add_argument("-o", help="Output name")
 	parser.add_argument("-k", help="concept key name")
 	parser.add_argument("-b", action="store_true", help="generate file for bulk load")
+	parser.add_argument("-r", action="store_true", help="make a private or restricted study, default is Public")	
 #	parser.add_argument("-tab", action="store_true", help="tab delimited file (default comma)")
 	args = parser.parse_args()
 
@@ -283,7 +298,10 @@ if __name__ == "__main__":
 		keyfilename = args.k		
 	if args.b:
 		bulk = args.b
+	if args.r:
+		TOP_PATH = '\\Private Studies\\'  # just make it the root
 
+	PROJECT = PROJECT.upper()
 	#print (sys.argv[1:])
 
 	main(cfgfile, datafile)
