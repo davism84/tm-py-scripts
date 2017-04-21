@@ -5,9 +5,12 @@ import requests
 import json
 import re
 import string
-import os
+import os, sys
 
-PROG_DIR = "E:/VirtualBox VMs/shared/ETL/tm-py-scripts/"
+def get_path():
+	return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+PROG_DIR = get_path() + '/'
 NAMESPACE = "cancer-reg"
 KEYNS = "ties.model"
 TAG_RE = re.compile(r'<[^>]+>')
@@ -42,7 +45,7 @@ def read_data(afile):
 	return cols
 
 def read_template():
-	tmpl = open('template.cfg', 'r')
+	tmpl = open(PROG_DIR + 'template.cfg', 'r')
 
 	cfgheader = tmpl.read()
 
@@ -139,9 +142,11 @@ def build_tiescfg_rows(columns):
 	pk = ""
 	ns = ""
 	mlabel = ""
+	cat = ""
 	# for each column get metadata and naaccr info
 	for col in columns:
-		p, ncode, dataType, pk, mlabel = match(col)
+		#p, ncode, dataType, pk, mlabel = match(col)
+		p, ncode, dataType, pk, cat, mlabel = match(col)
 		if pk:
 			ns = KEYNS
 		else:
